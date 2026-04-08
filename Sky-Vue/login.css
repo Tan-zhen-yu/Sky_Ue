@@ -1,0 +1,201 @@
+/* === login.css - Refined & Subtle Version === */
+
+body {
+    font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 容器：深邃的背景 */
+.login-wrapper {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    /* 更纯净的深黑背景，减少杂色 */
+    background: radial-gradient(circle at center, #0c0e14 0%, #000000 100%);
+    color: var(--text-main);
+}
+
+/* 噪点纹理：保留，增加质感 */
+.noise-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* 新背景：缓慢旋转的深空星云 (替代旧的圆圈) */
+.nebula-bg {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200vw; height: 200vw;
+    transform: translate(-50%, -50%);
+    /* 一个非常巨大、微弱的蓝色光晕 */
+    background: radial-gradient(circle, rgba(0, 242, 255, 0.04) 0%, transparent 60%);
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 0;
+    animation: rotate-slow 120s linear infinite;
+}
+@keyframes rotate-slow {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* === 登录卡片 (核心修改：高级呼吸感) === */
+.login-card {
+    width: 420px;
+    /* 背景更深，透明度更高，显得通透 */
+    background: rgba(10, 12, 16, 0.85); 
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 40px 35px;
+    position: relative;
+    z-index: 10;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+    
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    /* 极慢的呼吸动画，只改变边框和阴影的微弱光晕 */
+    animation: card-subtle-breathe 6s ease-in-out infinite alternate;
+}
+
+@keyframes card-subtle-breathe {
+    0% { border-color: rgba(255, 255, 255, 0.06); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+    100% { border-color: rgba(0, 242, 255, 0.15); box-shadow: 0 10px 50px rgba(0, 242, 255, 0.08); }
+}
+
+/* 顶部扫描线 (变细变慢) */
+.card-decor-top {
+    position: absolute; top: 0; left: 0; width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    opacity: 0.5;
+    animation: scan-move 4s ease-in-out infinite;
+}
+@keyframes scan-move {
+    0%, 100% { opacity: 0.2; width: 50%; left: 25%; }
+    50% { opacity: 0.8; width: 80%; left: 10%; box-shadow: 0 0 10px var(--accent-cyan); }
+}
+
+/* Logo 区域 (去掉缩放，只保留辉光闪烁) */
+.logo-glow {
+    font-size: 3rem;
+    color: var(--accent-cyan);
+    animation: logo-flicker 4s infinite alternate;
+}
+@keyframes logo-flicker {
+    0% { text-shadow: 0 0 15px rgba(0, 242, 255, 0.4); opacity: 0.9; }
+    100% { text-shadow: 0 0 25px rgba(0, 242, 255, 0.7); opacity: 1; }
+}
+
+.brand-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #fff;
+    margin: 0;
+}
+.text-thin { font-weight: 300; opacity: 0.7; font-size: 0.9em; }
+
+/* === 系统自检列表 === */
+.system-check {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 4px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
+    color: #777;
+}
+.check-item {
+    display: flex; justify-content: space-between;
+    margin-bottom: 4px;
+    transition: all 0.5s;
+}
+.check-item.done { 
+    color: var(--accent-green); 
+    border-left-color: var(--accent-green);
+}
+
+/* === 输入框 (修复后的样式) === */
+.input-group-cyber {
+    display: flex; /* 确保是弹性布局 */
+    position: relative;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.icon-box {
+    width: 45px;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.3);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    font-size: 1.1rem;
+}
+
+.input-group-cyber input {
+    flex: 1; /* 占满剩余空间 */
+    background: transparent;
+    border: none;
+    padding: 14px 15px;
+    color: #fff;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    letter-spacing: 1px;
+}
+.input-group-cyber input::placeholder { color: rgba(255,255,255,0.2); letter-spacing: 0; }
+
+/* 聚焦状态 */
+.input-group-cyber.focused {
+    background: rgba(0, 242, 255, 0.03);
+    border-color: rgba(0, 242, 255, 0.4);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+}
+.focused .icon-box { color: var(--accent-cyan); }
+
+/* 扫描线 */
+.scan-line {
+    position: absolute; bottom: 0; left: 0; height: 1px; width: 0%;
+    background: var(--accent-cyan);
+    transition: width 0.3s ease-out;
+    box-shadow: 0 -1px 5px var(--accent-cyan);
+}
+.focused .scan-line { width: 100%; }
+
+/* === 按钮 === */
+.btn-cyber-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent-cyan);
+    border: none;
+    color: #050608;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 2px;
+    clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-cyber-submit:hover:not(:disabled) {
+    background: #fff;
+    box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+}
+
+.btn-cyber-submit:disabled {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.4);
+    cursor: not-allowed;
+}
+
+/* 错误信息 */
+.error-msg { color: var(--accent-red); font-size: 0.9rem; }
+
+.login-footer {
+    margin-top: 30px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 15px;
+}

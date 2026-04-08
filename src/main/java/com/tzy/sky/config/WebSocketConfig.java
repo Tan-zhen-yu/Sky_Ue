@@ -1,18 +1,26 @@
 package com.tzy.sky.config;
 
 import com.tzy.sky.handler.MyWebSocketHandler;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
+
+    private final MyWebSocketHandler myWebSocketHandler;
+
+    public WebSocketConfig(MyWebSocketHandler myWebSocketHandler) {
+        this.myWebSocketHandler = myWebSocketHandler;
+    }
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // 核心地址： ws://localhost:8080/ws/socket
-        registry.addHandler(new MyWebSocketHandler(), "/ws/socket")
-                .setAllowedOrigins("*"); // 允许跨域（这句很重要，否则UE可能连不上）
+        registry.addHandler(myWebSocketHandler, "/ws/socket")
+                .setAllowedOrigins("*");
     }
 }

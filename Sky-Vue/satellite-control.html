@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天舟 SkySat 卫星仿真控制系统 V7.5</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- 引入数字字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <!-- 引入分离的CSS文件 -->
+    <link rel="stylesheet" href="satellite-control.css">
+</head>
+
+<body>
+
+<div id="app">
+    <!-- 顶部 -->
+    <nav class="navbar-pro">
+        <div class="brand">
+            <i class="bi bi-rocket-takeoff-fill"></i> 天舟控制中心
+            <span>SkySat Mission Control</span>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+            <!-- 仿真倍速 -->
+            <div class="d-flex align-items-center border border-secondary px-3 py-1 rounded bg-dark" style="border-color: #333 !important;">
+                <i class="bi bi-clock-history text-secondary me-2"></i>
+                <span class="text-secondary me-2 small">时空流速</span>
+                <span class="num-font text-info me-3 fs-5">{{ globalTimeScale.toFixed(1) }}x</span>
+                <input type="range" v-model.number="globalTimeScale" min="0" max="10" step="0.1" @change="setTimeScale" style="width: 100px; margin: 0;">
+            </div>
+            
+            <!-- UE启动 -->
+            <button @click="controlUe('start')" class="btn btn-sm btn-outline-success px-3 fw-bold" style="letter-spacing: 1px;">
+                <i class="bi bi-play-circle-fill me-1"></i> 启动仿真引擎
+            </button>
+            
+            <!-- 数据回放 -->
+            <button @click="openDataReplay" class="btn btn-sm btn-outline-info px-3 fw-bold" style="letter-spacing: 1px;">
+                <i class="bi bi-graph-up me-1"></i> 遥测数据分析
+            </button>
+            
+            <!-- 状态灯 -->
+            <div class="d-flex flex-column align-items-end" style="line-height: 1.2;">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="font-size: 0.7rem; color: #666;">系统状态</span>
+                    <span class="badge" :class="wsConnected ? 'bg-success' : 'bg-danger'">
+                        {{ wsConnected ? '在线' : '离线' }}
+                    </span>
+                </div>
+                <small class="num-font text-secondary" style="font-size: 0.7rem;">WS: {{ wsConnected ? 'CONNECTED' : 'DISCONNECTED' }}</small>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-grid">
+        
+        <!-- 1. 左侧：卫星列表 -->
+                <div class="sidebar-left">
+                <!-- [新增] 全球视图控制区 -->
+            <div style="padding: 16px; border-bottom: 1px solid var(--border-color);">
+                <button class="btn-earth" @click="viewEarth">
+                    <i class="bi bi-globe-americas fs-5"></i> 全球概览 (EARTH)
+                </button>
+            </div>
+
+            <!-- 原有的列表头 -->
+            <div class="list-header">
+                <i class="bi bi-list-stars"></i> 在轨资产列表 (ASSETS)
+            </div>
+                <div style="flex:1; overflow-y: auto;">
+                    <div v-for="sat in sortedSatellites" :key="sat.id" 
+                        class="sat-item d-flex align-items-center justify-content-between" 
+                        :class="{ active: selectedSatId === sat.id }"
+                        @click="selectSat(sat.id)">
+                        
+                        <div style="flex: 1; min-width: 0;">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="text-white fw-bold fs-5">{{ sat.id }}</span>
+                                <i v-if="sat.bat < 20" class="bi bi-battery-half text-danger" title="电量低"></i>
+                                <i v-if="sat.state === 'discharging'" class="bi bi-moon-stars-fill text-warning" title="阴影区"></i>
+                            </div>
+                            <div class="text-sub small num-font text-truncate" style="color: #888;">
+                                <i class="bi bi-broadcast-pin"></i> 
+                                {{ sat.connectedStation || '正在搜索信号...' }}
+                            </div>
+                        </div>
+
+                        <div class="focus-action ms-2">
+                            <button class="btn-focus" 
+                                    :class="{ 'is-focused': focusedSatId === sat.id }"
+                                    @click.stop="focusSat(sat.id)" 
+                                    title="视觉锁定">
+                                <i class="bi bi-crosshair"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+       <!-- 2. 中间 UE 视口 -->
+       <!-- 2. 中间 UE 视口 -->
+        <div class="center-viewport">
+            
+             <div class="ue-container" id="video-wrapper" :class="{'grid-bg': ueStatus !== 'active'}">
+                
+                <!-- 状态 A: 待机 (Idle) - 显示启动按钮 -->
+                <div v-if="ueStatus === 'idle'" class="ue-overlay">
+                    <div class="text-center">
+                        <div class="mb-4 text-secondary num-font" style="letter-spacing: 2px;">
+                            SYSTEM READY // WAITING FOR INPUT
+                        </div>
+                        <button class="btn-launch" @click="startUeSimulation">
+                            <i class="bi bi-power"></i>
+                            <span class="d-block mt-2 fs-6">启动仿真引擎</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 状态 B: 启动中 (Booting) - 显示加载动画与日志 -->
+                <div v-if="ueStatus === 'booting'" class="ue-overlay">
+                    <div class="text-center" style="width: 300px;">
+                        <div class="spinner-border text-info mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <h5 class="text-white fw-normal mb-2">正在启动仿真实例...</h5>
+                        <div class="progress mb-2" style="height: 4px; background: #333;">
+                            <div class="progress-bar bg-info progress-bar-striped progress-bar-animated" :style="{width: bootProgress + '%'}"></div>
+                        </div>
+                        <div class="text-start font-monospace small text-secondary">
+                            > {{ bootLog }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 状态 C: 运行中 (Active) - 显示 iframe 推流 -->
+                <!-- allow 属性非常重要，允许自动播放和键盘鼠标输入 -->
+                <iframe v-if="ueStatus === 'active'" 
+                    src="http://127.0.0.1/simple.html" 
+                    width="100%" height="100%" 
+                    frameborder="0" 
+                    scrolling="no"
+                    allow="autoplay; encrypted-media; fullscreen; microphone; camera; mouse-lock; clipboard-read; clipboard-write"
+                    style="background: #000;">
+                </iframe>
+
+                <!-- HUD 悬浮层 (保持在最上层) -->
+                <div v-if="currentSat && wsConnected && ueStatus === 'active'" 
+                     style="position: absolute; top: 20px; left: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; z-index: 10;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div style="width: 4px; height: 40px; background: var(--accent-cyan);"></div>
+                        <div>
+                            <h2 class="m-0 num-font text-white" style="line-height: 1;">{{ currentSat.id }}</h2>
+                            <div class="num-font text-info fs-5">ALT: {{ altitude }} KM</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="log-console" ref="consoleBox">
+                <div v-for="(log, i) in logs" :key="i" style="border-bottom: 1px dashed #222; padding: 2px 0;">
+                    <span style="color: #666; font-size: 0.85em; margin-right: 8px;">[{{ log.time }}]</span>
+                    <span style="color: #ddd;">{{ log.msg }}</span>
+                </div>
+            </div>
+        </div>
+
+       <!-- 3. 右侧 遥测与控制 -->
+        <div class="sidebar-right" v-if="currentSat">
+            
+            <!-- A. 轨道参数 (Orbit) - 始终可见，因为这是“遥测”数据，假设地面雷达即使无链路也能看到基本位置 -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span><i class="bi bi-globe2 me-2"></i>轨道遥测数据</span>
+                    <span class="status-badge ok">{{ orbitType.text }}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">轨道高度 (Altitude)</span>
+                    <span class="data-value text-info">{{ altitude }} <span class="unit">km</span></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">飞行速度 (Velocity)</span>
+                    <span class="data-value">{{ currentSat.speed ? currentSat.speed.toFixed(3) : '0.000' }} <span class="unit">km/s</span></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">实时经纬 (Lat/Lon)</span>
+                    <span class="data-value text-sub" style="font-size: 0.9rem;">{{ latLonStr }}</span>
+                </div>
+            </div>
+
+                        <!-- F. 有效载荷 (Payload) -->
+            <div class="panel" :class="{ 'disabled-ui': !hasSignal }">
+                <div class="panel-title">
+                    <span><i class="bi bi-camera-reels me-2"></i>有效载荷 (Payload)</span>
+                    <span v-if="!hasSignal" class="status-badge alert">NO SIGNAL</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <!-- 应用新的 btn-payload 类，并绑定 disabled -->
+                    <button class="btn-payload" 
+                            @click="takePhoto"
+                            :disabled="!hasSignal || !hasPower">
+                        <i class="bi bi-camera-fill"></i> 
+                        <!-- 动态文案 -->
+                        {{ !hasPower ? '电量不足 (LOW BAT)' : '拍摄高分影像' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- B. 能源与环境 (EPS & ENV) -->
+            <!-- 即使没信号，通常也能推算电量，或者为了游戏性保留显示，暂不禁用 -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span><i class="bi bi-lightning-charge me-2"></i>能源与环境</span>
+                    <span class="status-badge" :class="isEclipse ? 'alert' : 'ok'">
+                        <i class="bi" :class="isEclipse ? 'bi-moon-fill' : 'bi-sun-fill'"></i>
+                        {{ isEclipse ? '阴影区' : '光照区' }}
+                    </span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="data-label">电池电量 (Battery)</span>
+                    <span class="data-value" :class="currentSat.bat < 20 ? 'text-danger' : 'text-success'">
+                        {{ currentSat.bat.toFixed(1) }}%
+                    </span>
+                </div>
+                <div class="progress mb-4" style="height: 6px; background: #222; border-radius: 3px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         :class="currentSat.bat < 20 ? 'bg-danger' : 'bg-success'" 
+                         :style="{width: currentSat.bat + '%'}"></div>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">帆板光照效率</span>
+                    <span class="data-value text-warning">{{ (currentSat.solarEfficiency * 100).toFixed(0) }} <span class="unit">%</span></span>
+                </div>
+            </div>
+
+            <!-- C. 热控系统 (TCS) - 增加信号限制 -->
+            <div class="panel" :class="{ 'disabled-ui': !hasSignal }">
+                <div class="panel-title">
+                    <span><i class="bi bi-thermometer-half me-2"></i>热控系统 (TCS)</span>
+                    <span v-if="!hasSignal" class="status-badge alert">OFFLINE</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">表面温度</span>
+                    <span class="data-value num-font" :style="{color: tempColor, fontSize: '1.4rem'}">
+                        {{ currentSat.temp ? currentSat.temp.toFixed(1) : 0.0 }} <span class="unit">°C</span>
+                    </span>
+                </div>
+                <div id="chart-temp" style="width: 100%; height: 100px; margin-bottom: 15px;"></div>
+                
+                <div class="control-group">
+                    <button class="btn-ctrl" :class="{active: currentSat.thermal === 'auto'}" @click="setThermal('auto')">自动 Auto</button>
+                    <button class="btn-ctrl" :class="{'active-red': currentSat.thermal === 'heater'}" @click="setThermal('heater')">加热器 ON</button>
+                    <button class="btn-ctrl" :class="{active: currentSat.thermal === 'cooler'}" @click="setThermal('cooler')">散热器 ON</button>
+                </div>
+            </div>
+
+            <!-- D. 姿态与指向 (ADCS) - 增加信号限制 -->
+            <div class="panel" :class="{ 'disabled-ui': !hasSignal }">
+                <div class="panel-title">
+                    <span><i class="bi bi-compass me-2"></i>姿态控制 (ADCS)</span>
+                    <span v-if="!hasSignal" class="status-badge alert">LINK LOST</span>
+                    <span v-else-if="currentSat.mode !== 'free'" class="status-badge" style="border-color: var(--accent-orange); color: var(--accent-orange);">
+                        <i class="bi bi-lock-fill"></i> LOCKED
+                    </span>
+                </div>
+
+                <div class="control-group mb-4">
+                    <button class="btn-ctrl" :class="{active: currentSat.mode === 'earth'}" @click="setPointing('earth')">对地 Nadir</button>
+                    <button class="btn-ctrl" :class="{active: currentSat.mode === 'sun'}" @click="setPointing('sun')">对日 Sun</button>
+                    <button class="btn-ctrl" :class="{active: currentSat.mode === 'free'}" @click="setPointing('free')">自由 Free</button>
+                </div>
+
+                <!-- 三轴控制区 (如果模式非Free，也会被禁用，双重禁用) -->
+                <div :class="{ 'disabled-ui': currentSat.mode !== 'free' }">
+                    <div v-for="axis in ['pitch', 'yaw', 'roll']" :key="axis" class="attitude-row">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="axis-label text-uppercase">{{ axis }}</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="btn-step" @click="stepAttitude(axis, -1)">-1°</button>
+                                <span class="num-font text-info" style="min-width: 45px; text-align: center;">
+                                    {{ currentSat.rot ? Math.round(currentSat.rot[axis.charAt(0)]) : 0 }}°
+                                </span>
+                                <button class="btn-step" @click="stepAttitude(axis, 1)">+1°</button>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-secondary">{{ axis === 'pitch' ? -89 : -180 }}</span>
+                            <input type="range" class="flex-grow-1"
+                                :min="axis === 'pitch' ? -89 : -180" 
+                                :max="axis === 'pitch' ? 89 : 180" 
+                                step="1"
+                                :value="currentSat.rot ? currentSat.rot[axis.charAt(0)] : 0" 
+                                @input="updateAttitude(axis, $event.target.value)">
+                            <span class="small text-secondary">{{ axis === 'pitch' ? 89 : 180 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- E. 轨道机动 -->
+            <div class="panel" style="border-bottom: none;" :class="{ 'disabled-ui': !hasSignal }">
+                <div class="panel-title">
+                    <span><i class="bi bi-fire me-2"></i>轨道机动控制</span>
+                    <span v-if="!hasSignal" class="status-badge alert">DISABLED</span>
+                    <!-- 新增电量低提示徽章 -->
+                    <span v-else-if="!hasPower" class="status-badge alert">LOW POWER</span>
+                </div>
+                
+                <!-- 按钮增加 !hasPower 的禁用判断 -->
+                <button class="btn-engine" 
+                        :class="{'firing': engineFiring}"
+                        @mousedown="fireEngine(true)" 
+                        @mouseup="fireEngine(false)"
+                        @mouseleave="fireEngine(false)"
+                        :disabled="!hasSignal || !hasPower">
+                    <i class="bi bi-power me-2"></i> 
+                    <!-- 动态文案 -->
+                    {{ engineFiring ? '主发动机点火中...' : (!hasPower ? '电量过低 (LOW BATTERY)' : '按住点火 (IGNITION)') }}
+                </button>
+                
+                <div class="text-center mt-3" v-if="engineFiring">
+                    <small class="text-warning num-font"><i class="bi bi-exclamation-triangle"></i> 正在消耗燃料与电力</small>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 未选择状态 -->
+        <div class="sidebar-right d-flex align-items-center justify-content-center text-sub" v-else>
+            <div class="text-center">
+                <i class="bi bi-satellite fs-1 d-block mb-3" style="opacity: 0.3;"></i>
+                <p>请从左侧列表选择一颗卫星<br>查看详细遥测数据</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed, reactive, watch, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            // === 状态定义 ===
+            const wsUrl = 'ws://localhost:8080/ws/socket';
+            const wsConnected = ref(false);
+            const satellites = reactive({});
+            const globalTimeScale = ref(1.0);
+            const logs = ref([]);
+            
+            const selectedSatId = ref(null);
+            const focusedSatId = ref(null);
+            const engineFiring = ref(false);
+            // UE 相关状态
+            const ueStatus = ref('idle'); // 状态: idle, booting, active
+            const bootProgress = ref(0);
+            const bootLog = ref('Ready.');
+            // 图表相关
+            let chartInstance = null;
+            const tempDataHistory = {}; 
+
+            // 计算当前卫星
+            const currentSat = computed(() => selectedSatId.value ? satellites[selectedSatId.value] : null);
+            const sortedSatellites = computed(() => Object.values(satellites).sort((a,b)=>a.id.localeCompare(b.id)));
+
+            // === 物理计算属性 ===
+
+            const latLonStr = computed(() => {
+                if(!currentSat.value || !currentSat.value.loc) return "N/A";
+                
+                const {x, y, z} = currentSat.value.loc;
+                const r = Math.sqrt(x*x + y*y + z*z);
+                
+                // 数学公式：
+                // 纬度 (Lat) = asin(z / r)
+                // 经度 (Lon) = atan2(y, x)
+                
+                if (r === 0) return "0° / 0°";
+
+                let lat = (Math.asin(z / r) * 180 / Math.PI);
+                let lon = (Math.atan2(y, x) * 180 / Math.PI);
+
+                // 模拟地球自转带来的经度偏移 (可选，为了让经度看起来在变)
+                // 假设地球每秒转 0.5度 (加速仿真)
+                // lon = (lon - (Date.now() / 1000 * 0.5)) % 360; 
+                // if(lon < -180) lon += 360;
+
+                // 格式化字符串
+                const latStr = `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? 'N' : 'S'}`;
+                const lonStr = `${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? 'E' : 'W'}`;
+                
+                return `${latStr} / ${lonStr}`;
+            });
+            
+            const altitude = computed(() => {
+                if(!currentSat.value || !currentSat.value.loc) return "0.0";
+                const {x, y, z} = currentSat.value.loc;
+                const radius = Math.sqrt(x*x + y*y + z*z);
+                return (radius - 6371).toFixed(1); 
+            });
+
+            const hasSignal = computed(() => {
+                return currentSat.value && currentSat.value.connectedStation && currentSat.value.connectedStation.length > 0;
+            });
+
+            const hasPower = computed(() => {
+                return currentSat.value && currentSat.value.bat > 5.0; 
+            });
+
+            const takePhoto = () => {
+                if (!currentSat.value) return;
+                
+                // 1. 检查信号
+                if (!hasSignal.value) {
+                    addLog(`[错误] 无数据链路连接，指令被拒绝: Photo`);
+                    return;
+                }
+
+                // 2. [新增] 检查电量
+                if (!hasPower.value) {
+                    addLog(`[警告] 电池电量不足 (${currentSat.value.bat.toFixed(1)}%)，无法启动载荷`);
+                    return;
+                }
+
+                const satId = currentSat.value.id;
+                addLog(`[指令] 正在请求 ${satId} 执行对地成像...`);
+
+                const formData = new URLSearchParams();
+                formData.append('id', satId);
+
+                fetch('http://localhost:8080/api/sat/photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                })
+                .then(async (res) => {
+                    const result = await res.json();
+                    if (result.code === 200) {
+                        if(result.data && (result.data.includes("不足") || result.data.includes("Low"))) {
+                            addLog(`[错误] 载荷操作失败: ${result.data}`);
+                        } else {
+                            addLog(`[有效载荷] 成像完成: ${result.data || result.message}`);
+                        }
+                    } else {
+                        addLog(`[错误] ${result.message || '请求异常'}`);
+                    }
+                })
+                .catch(err => {
+                    addLog(`[异常] 网络错误: ${err.message}`);
+                });
+            };
+
+            const startUeSimulation = async () => {
+            // 1. 切换UI状态
+            ueStatus.value = 'booting';
+            bootProgress.value = 5;
+            bootLog.value = 'Establishing link...';
+            
+            addLog('[系统] 请求启动仿真渲染服务器...');
+
+            try {
+                // 2. 调用后端接口启动 UE 进程
+                const response = await fetch('http://localhost:8080/api/ue/start');
+                const data = await response.json();
+
+                if (data.code !== 200) {
+                    throw new Error(data.message || 'UE启动失败');
+                }
+                
+                // 3. 模拟启动加载过程 (给 UE 启动预留时间)
+                // 真实的 UE 启动可能需要 5-10 秒，我们用进度条来填充这段时间
+                bootLog.value = 'Process started. Allocating GPU...';
+                
+                let progress = 10;
+                const timer = setInterval(() => {
+                    progress += Math.random() * 5;
+                    if (progress > 95) progress = 95; // 等待最终跳转
+                    
+                    bootProgress.value = progress;
+                    
+                    // 随机显示一些“极客”日志
+                    if (progress > 30 && progress < 35) bootLog.value = 'Loading shaders...';
+                    if (progress > 60 && progress < 65) bootLog.value = 'Initializing pixel streaming...';
+                    if (progress > 80 && progress < 85) bootLog.value = 'Connecting video stream...';
+
+                }, 200); // 每200ms更新一次进度条
+
+                // 4. 设定一个固定的等待时间（例如 5秒），等待 UE 完全就绪
+                // 这里根据你电脑的性能调整，如果 UE 启动很慢，就设 8000 或 10000
+                setTimeout(() => {
+                    clearInterval(timer);
+                    bootProgress.value = 100;
+                    bootLog.value = 'Stream Ready.';
+                    
+                    // 5. 切换到 active 状态，此时 Vue 会渲染 iframe
+                    ueStatus.value = 'active';
+                    addLog('[系统] 视频流已接入 (Stream Connected)');
+                    
+                }, 7000); // 延迟 7000ms
+
+            } catch (error) {
+                console.error(error);
+                ueStatus.value = 'idle'; // 失败退回
+                addLog(`[错误] 仿真引擎启动失败: ${error.message}`);
+                alert("启动失败，请检查后端服务");
+            }
+        };
+
+            const isEclipse = computed(() => currentSat.value?.state === 'discharging');
+
+            const tempColor = computed(() => {
+                const t = currentSat.value?.temp || 0;
+                if(t > 100) return '#ff4d4d'; // 亮红
+                if(t < -50) return '#00f2ff'; // 亮蓝
+                return '#ffffff';
+            });
+
+          const getPointingModeName = (mode) => {
+                if (!mode) return "等待数据..."; // 避免显示“初始化中”太久
+                const map = { 
+                    'earth': '对地定向 (Nadir)', 
+                    'sun': '对日定向 (Sun)', 
+                    'free': '自由控制 (Free)'
+                };
+                // 容错处理：转小写匹配
+                return map[mode.toLowerCase()] || mode.toUpperCase(); 
+            };
+
+            // === 方法 ===
+
+            const addLog = (msg) => {
+                logs.value.unshift({ time: new Date().toLocaleTimeString(), msg });
+                if(logs.value.length > 50) logs.value.pop();
+            };
+
+            const selectSat = (id) => {
+                selectedSatId.value = id;
+                nextTick(() => initChart());
+            };
+
+           const focusSat = (id) => {
+                // 1. 立即更新前端视觉状态（让图标亮起来）
+                focusedSatId.value = id; 
+
+                // 2. 调用后端 Controller 接口，而不是 sendWsCommand
+                // 使用 FormData 匹配你的 @RequestParam
+                const formData = new URLSearchParams();
+                formData.append('id', id);
+
+                fetch(`http://localhost:8080/api/sat/focus`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData
+                })
+                .then(async response => {
+                    const result = await response.json();
+                    if (result.code === 200) {
+                        addLog(`[指令] 视觉锁定已切换至: ${id}`);
+                    } else {
+                        addLog(`[错误] ${result.message || '视觉锁定失败'}`);
+                    }
+                })
+                .catch(err => {
+                    console.error('Network error during focus:', err);
+                });
+            };
+
+            const connectWs = () => {
+                const socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    wsConnected.value = true;
+                    addLog("数据链路已连接 (Uplink Established)");
+                };
+                
+                socket.onclose = () => {
+                    wsConnected.value = false;
+                    addLog("数据链路断开 (Connection Lost)");
+                    setTimeout(connectWs, 3000); 
+                };
+
+                socket.onmessage = (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                         if (msg.target === 'sat' && msg.action === 'sync') {
+                              const data = msg.payload;
+
+            // 🛠️【修复核心】字段映射：把后端的长名字映射给前端的短名字
+                            if (data.thermalMode) data.thermal = data.thermalMode;
+                            if (data.pointingMode) data.mode = data.pointingMode; 
+                            
+                            // 下面这行不变，合并数据
+                            if(satellites[data.id]) {
+                                Object.assign(satellites[data.id], data);
+                            } else {
+                                satellites[data.id] = data;
+                            }
+                            updateChartData(data.id, data.temp);
+                        }
+                         // 2. [新增] 处理传感器突发报告 (进出阴影)
+                        else if (msg.target === 'sat' && msg.action === 'sensor_report') {
+                            const data = msg.payload; // { occluded: true, id: "Sat_02" }
+                            
+                            if (satellites[data.id]) {
+                                // 更新遮挡状态
+                                // 注意：你的前端UI是通过 state === 'discharging' 来判断阴影的
+                                // 所以这里需要把布尔值转换回状态字符串，或者更新 Vue 对象里的属性
+                                
+                                if (data.occluded) {
+                                    satellites[data.id].state = 'discharging'; // 进阴影 -> 放电
+                                    addLog(`[传感器] ${data.id} 进入阴影区 (停止充电)`);
+                                } else {
+                                    satellites[data.id].state = 'charging';    // 出阴影 -> 充电
+                                    addLog(`[传感器] ${data.id} 恢复光照 (开始充电)`);
+                                }
+
+                                // 也可以直接存一个字段供逻辑判断
+                                satellites[data.id].occluded = data.occluded;
+                            }
+                        }
+                    } catch(err) {}
+                };
+                
+                window.wsSend = (target, action, payload) => {
+                    if(socket.readyState === 1) {
+                        socket.send(JSON.stringify({ target, action, payload }));
+                    }
+                };
+            };
+
+            const orbitType = computed(() => {
+    // 获取当前计算出的高度数值
+                const alt = parseFloat(altitude.value);
+                
+                if (isNaN(alt)) return { text: "UNKNOWN", class: "alert" };
+
+                // 国际标准定义：
+                // LEO (低轨): < 2000 km
+                // MEO (中轨): 2000 km ~ 35786 km
+                // GEO (高轨/同步): ≈ 35786 km
+                
+                if (alt < 2000) {
+                    return { text: "LEO 低轨", class: "ok" }; // 绿色
+                } else if (alt < 35000) {
+                    return { text: "MEO 中轨", class: "ok" }; // 绿色 (或者你可以定义个 warning 黄色)
+                } else {
+                    return { text: "GEO 高轨", class: "alert" }; // 这里为了区分，用红色/紫色高亮
+                }
+            });
+
+            const sendWsCommand = (target, action, payload) => {
+                if(window.wsSend) window.wsSend(target, action, payload);
+            };
+
+            const initChart = () => {
+                const dom = document.getElementById('chart-temp');
+                if(!dom) return;
+                if(chartInstance) chartInstance.dispose();
+                
+                chartInstance = echarts.init(dom);
+                chartInstance.setOption({
+                    grid: { top: 5, bottom: 5, left: 0, right: 0 },
+                    xAxis: { type: 'category', show: false },
+                    yAxis: { type: 'value', show: false, min: -150, max: 200 },
+                    series: [{
+                        type: 'line',
+                        smooth: true,
+                        showSymbol: false,
+                        lineStyle: { width: 2, color: '#ffaa00' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255, 170, 0, 0.4)' },
+                                { offset: 1, color: 'rgba(255, 170, 0, 0)' }
+                            ])
+                        },
+                        data: []
+                    }]
+                });
+            };
+
+            const updateChartData = (id, temp) => {
+                if(!tempDataHistory[id]) tempDataHistory[id] = [];
+                tempDataHistory[id].push(temp);
+                if(tempDataHistory[id].length > 50) tempDataHistory[id].shift();
+
+                if(selectedSatId.value === id && chartInstance) {
+                    chartInstance.setOption({
+                        series: [{ data: tempDataHistory[id] }]
+                    });
+                }
+            };
+
+           const updateYaw = (val) => {
+            if (!currentSat.value) return;
+            
+            // 这种频繁滑动的操作，建议不用乐观更新，或者防抖，这里直接发请求
+            const formData = new URLSearchParams();
+            formData.append('id', currentSat.value.id);
+            formData.append('axis', 'yaw');
+            formData.append('val', val);
+
+            fetch('http://localhost:8080/api/sat/attitude', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            })
+            .catch(err => console.error('attitude update error:', err));
+        };
+
+            const setThermal = (mode) => {
+            if (!currentSat.value) return;
+             if (!hasSignal.value) return; // <--- 新增拦截
+
+            // A. 乐观更新 UI
+            satellites[selectedSatId.value].thermal = mode;
+
+            // B. 发送请求
+            const formData = new URLSearchParams();
+            formData.append('id', currentSat.value.id);
+            formData.append('mode', mode);
+
+            fetch('http://localhost:8080/api/sat/thermal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            })
+            .then(async res => {
+                const result = await res.json();
+                if(result.code === 200) addLog(`[指令] 切换热控模式: ${mode.toUpperCase()}`);
+                else addLog(`[错误] ${result.message || '热控切换失败'}`);
+            })
+            .catch(err => console.error('thermal error:', err));
+        };
+
+        const viewEarth = () => {
+                // 视觉反馈：取消当前选中的卫星，让右侧面板变空，因为这是“全景”模式
+                selectedSatId.value = null; 
+                focusedSatId.value = null;
+
+                addLog('[指令] 切换至全球全景视图 (Global View)');
+
+                // 发送 POST 请求
+                fetch('http://localhost:8080/api/sim/viewEarth', {
+                    method: 'POST'
+                })
+                .catch(err => {
+                    console.error("View switch failed", err);
+                    addLog('[错误] 视图切换请求失败');
+                });
+            };
+
+
+           const setPointing = (mode) => {
+                if (!currentSat.value) return;
+                if (!hasSignal.value) return; // <--- 新增拦截
+
+                // A. 乐观更新 UI (立刻让按钮亮起来)
+                satellites[selectedSatId.value].mode = mode; 
+
+                // B. 准备表单数据 (对应 @RequestParam)
+                const formData = new URLSearchParams();
+                formData.append('id', currentSat.value.id);
+                formData.append('target', mode);
+
+                // C. 发送 HTTP 请求
+                fetch('http://localhost:8080/api/sat/pointing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            })
+            .then(async res => {
+                const result = await res.json();
+                if(result.code === 200) addLog(`[指令] 切换指向模式: ${getPointingModeName(mode)}`);
+                else addLog(`[错误] ${result.message || '指向指令发送失败'}`);
+            })
+            .catch(err => console.error("API Error:", err));
+            };
+
+           const fireEngine = (active) => {
+            if(!currentSat.value) return;
+            
+            // 1. 检查信号
+            if (!hasSignal.value) {
+                if (engineFiring.value) {
+                    engineFiring.value = false;
+                    addLog(`[警告] 信号丢失，点火安全终止`);
+                }
+                return; 
+            }
+
+            // 2. [新增] 检查电量
+            if (!hasPower.value) {
+                if (engineFiring.value) {
+                    engineFiring.value = false; // 如果正在喷的时候没电了，立刻停
+                    addLog(`[警告] 电力耗尽，主发动机关机`);
+                } else if (active) {
+                    // 如果尝试点火
+                    addLog(`[错误] 电量过低 (${currentSat.value.bat.toFixed(1)}%)，无法启动发动机`);
+                }
+                return;
+            }
+
+            // 正常逻辑
+            engineFiring.value = active;
+            fetch(`http://localhost:8080/api/sat/engine?id=${currentSat.value.id}&active=${active}`, {method: 'POST'})
+                .catch(e => console.error('engine error:', e));
+            
+            if(active) addLog(`[警告] ${currentSat.value.id} 主发动机点火!`);
+        };
+
+            const setTimeScale = () => {
+                sendWsCommand('sys', 'timescale', { scale: globalTimeScale.value });
+            };
+
+            // === 修改与新增的方法 ===
+
+            // 1. 通用的姿态更新函数（响应滑动条）
+            const updateAttitude = (axis, val) => {
+                if (!currentSat.value || currentSat.value.mode !== 'free') return;
+                  if (!hasSignal.value) return; // <--- 新增拦截
+                
+                // 发送指令给后端
+                // 注意：后端接收的 payload 包含 id, axis, delta
+                sendWsCommand('sat', 'adjust_attitude', { 
+                    id: currentSat.value.id, 
+                    axis: axis.toLowerCase(), 
+                    delta: parseFloat(val) 
+                });
+
+                // 乐观更新：让前端数值立刻变化，避免网络延迟感
+                if(currentSat.value.rot) {
+                    // 映射：pitch -> p, yaw -> y, roll -> r (根据你 C++ 结构体的定义)
+                    const map = { pitch: 'p', yaw: 'y', roll: 'r' };
+                    currentSat.value.rot[map[axis]] = parseFloat(val);
+                }
+            };
+
+            // 2. 步进控制函数（响应按钮 +/- 1度）
+           const stepAttitude = (axis, step) => {
+            if (!currentSat.value || currentSat.value.mode !== 'free') return;
+             if (!hasSignal.value) return; // <--- 新增拦截
+            
+            const map = { pitch: 'p', yaw: 'y', roll: 'r' };
+            const key = map[axis];
+            const currentVal = currentSat.value.rot ? currentSat.value.rot[key] : 0;
+            let newVal = currentVal + step;
+            
+            if (axis === 'pitch') {
+                // Pitch 轴：限制在 -89 到 89 之间，不进行环绕
+                if (newVal > 89) newVal = 89;
+                if (newVal < -89) newVal = -89;
+            } else {
+                // Yaw 和 Roll 轴：保持原有的角度环绕逻辑 (-180 到 180)
+                if (newVal > 180) newVal = -180;
+                if (newVal < -180) newVal = 180;
+            }
+            
+            updateAttitude(axis, newVal);
+        };
+
+            const controlUe = (action) => {
+                fetch(`http://localhost:8080/api/ue/${action}`)
+                .then(async res => {
+                    const result = await res.json();
+                    addLog(`仿真引擎: ${result.status || result.message}`);
+                    const wrapper = document.getElementById('video-wrapper');
+                    if(wrapper && action === 'start' && result.url) {
+                        wrapper.innerHTML = `<iframe src="${result.url}?autostart=true" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    }
+                })
+                .catch(err => {
+                    console.error('controlUe error:', err);
+                    addLog(`仿真引擎: 请求失败`);
+                });
+            };
+
+            const openDataReplay = () => {
+                window.location.href = 'telemetry-analysis.html';
+            };
+
+            connectWs();
+
+            return {
+                wsConnected, sortedSatellites, selectedSatId, focusedSatId, currentSat,
+                altitude, isEclipse, tempColor, getPointingModeName,
+                globalTimeScale, logs, engineFiring, latLonStr, orbitType,
+                selectSat, focusSat, setTimeScale, controlUe, updateAttitude, 
+        stepAttitude , hasSignal,takePhoto, hasPower, ueStatus,bootProgress,bootLog,
+    startUeSimulation, 
+                updateYaw, setThermal, viewEarth,setPointing, fireEngine, openDataReplay
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

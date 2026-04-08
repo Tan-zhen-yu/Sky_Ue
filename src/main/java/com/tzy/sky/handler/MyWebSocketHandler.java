@@ -2,11 +2,11 @@ package com.tzy.sky.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tzy.sky.dto.payload.TimeScalePayload;
 import com.tzy.sky.dto.protocol.WsAction;
 import com.tzy.sky.dto.protocol.WsTarget;
 import com.tzy.sky.service.PhysicsService;
-import com.tzy.sky.utils.SpringContextHolder;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -17,20 +17,29 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+@Slf4j
 @Component
 public class MyWebSocketHandler extends TextWebSocketHandler {
 
-    private static final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+    private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
     private final ObjectMapper mapper = new ObjectMapper();
+    private final PhysicsService physicsService;
+
+    @Autowired
+    public MyWebSocketHandler(PhysicsService physicsService) {
+        this.physicsService = physicsService;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.add(session);
+        log.info("WebSocket连接已建立: {}", session.getId());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessions.remove(session);
+        log.info("WebSocket连接已关闭: {}, 状态: {}", session.getId(), status);
     }
 
     @Override
@@ -44,15 +53,10 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         String action = root.get("action").asText();
         JsonNode payload = root.get("payload");
 
-        // === 核心修复：Java 必须处理控制指令 ===
-        PhysicsService service = SpringContextHolder.getBean(PhysicsService.class);
-
-        // 1. 处理系统指令 (时间流速)
         if ("sys".equals(target)) {
             if ("timescale".equals(action)) {
-                service.setTimeScale(payload.get("scale").asDouble());
+                physicsService.setTimeScale(payload.get("scale").asDouble());
             }
-
         }
         else if ("sat".equals(target)) {
             if ("focus_mode".equals(action)) {
@@ -63,44 +67,35 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
                 String id = payload.get("id").asText();
 
                 if ("thermal_ctrl".equals(action)) {
-                    service.setThermalMode(id, payload.get("mode").asText());
+                    physicsService.setThermalMode(id, payload.get("mode").asText());
                 }
                 else if ("point_to".equals(action)) {
-                    service.setPointingMode(id, payload.get("target").asText());
+                    physicsService.setPointingMode(id, payload.get("target").asText());
                 }
                 else if ("adjust_attitude".equals(action)) {
-                    service.setAttitude(id, payload.get("axis").asText(), payload.get("delta").asDouble());
+                    physicsService.setAttitude(id, payload.get("axis").asText(), payload.get("delta").asDouble());
                 }
             }
         }
-
-        // 2. 处理卫星控制指令 (姿态、热控、指向)
         else if ("server".equals(target) && "attitude_report".equals(action)) {
             String id = payload.get("id").asText();
             JsonNode rot = payload.get("rot");
 
-            // 获取 P, Y, R
             double p = rot.get("p").asDouble();
             double y = rot.get("y").asDouble();
             double r = rot.get("r").asDouble();
 
-            // 更新你的 Service 内存中的卫星状态
-            service.updateRealRotation(id, p, y, r);
+            physicsService.updateRealRotation(id, p, y, r);
         }
-
-        // 3. 处理传感器回传 (Server)
         else if ("server".equals(target)) {
             if ("sensor_report".equals(action)) {
-                service.updateSensorStatus(payload.get("id").asText(), payload.get("occluded").asBoolean());
+                physicsService.updateSensorStatus(payload.get("id").asText(), payload.get("occluded").asBoolean());
             }
         }
 
-        // 4. 最后：将指令广播给 UE5 (让UE去执行视觉表现)
-        // 注意：不要广播给自己(前端)，否则可能会造成回环，但为了保险起见广播给所有非己方
         for (WebSocketSession client : sessions) {
-            // 不要发给自己，且必须加锁
             if (client.isOpen() && !client.getId().equals(session.getId())) {
-                synchronized (client) { // <--- 必须加锁！
+                synchronized (client) {
                     client.sendMessage(message);
                 }
             }
@@ -112,11 +107,11 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         for (WebSocketSession client : sessions) {
             if (client.isOpen()) {
                 try {
-                    synchronized (client) { // <--- 必须加锁！
+                    synchronized (client) {
                         client.sendMessage(textMessage);
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("WebSocket广播消息失败: {}", client.getId(), e);
                 }
             }
         }

@@ -30,8 +30,8 @@ class SatelliteModelTest {
     void defaultValues_ShouldBeCorrect() {
         assertEquals(100.0, satellite.getBattery());
         assertEquals(20.0, satellite.getTemperature());
-        assertEquals("auto", satellite.getThermalMode());
-        assertEquals("earth", satellite.getPointingMode());
+        assertEquals(ThermalMode.AUTO, satellite.getThermalModeValue());
+        assertEquals(PointingMode.EARTH, satellite.getPointingModeValue());
         assertFalse(satellite.isEngineActive());
         assertFalse(satellite.isOccluded());
         assertFalse(satellite.isScanning());
@@ -69,27 +69,27 @@ class SatelliteModelTest {
     @Test
     @DisplayName("热控模式切换应生效")
     void thermalMode_ShouldSwitchCorrectly() {
-        satellite.setThermalMode("heater");
-        assertEquals("heater", satellite.getThermalMode());
+        satellite.setThermalMode(ThermalMode.HEATER);
+        assertEquals(ThermalMode.HEATER, satellite.getThermalModeValue());
 
-        satellite.setThermalMode("cooler");
-        assertEquals("cooler", satellite.getThermalMode());
+        satellite.setThermalMode(ThermalMode.COOLER);
+        assertEquals(ThermalMode.COOLER, satellite.getThermalModeValue());
 
-        satellite.setThermalMode("auto");
-        assertEquals("auto", satellite.getThermalMode());
+        satellite.setThermalMode(ThermalMode.AUTO);
+        assertEquals(ThermalMode.AUTO, satellite.getThermalModeValue());
     }
 
     @Test
     @DisplayName("指向模式切换应生效")
     void pointingMode_ShouldSwitchCorrectly() {
-        satellite.setPointingMode("sun");
-        assertEquals("sun", satellite.getPointingMode());
+        satellite.setPointingMode(PointingMode.SUN);
+        assertEquals(PointingMode.SUN, satellite.getPointingModeValue());
 
-        satellite.setPointingMode("free");
-        assertEquals("free", satellite.getPointingMode());
+        satellite.setPointingMode(PointingMode.FREE);
+        assertEquals(PointingMode.FREE, satellite.getPointingModeValue());
 
-        satellite.setPointingMode("earth");
-        assertEquals("earth", satellite.getPointingMode());
+        satellite.setPointingMode(PointingMode.EARTH);
+        assertEquals(PointingMode.EARTH, satellite.getPointingModeValue());
     }
 
     @Test

@@ -1,10 +1,12 @@
 package com.tzy.sky.service;
 
 import com.tzy.sky.config.properties.SatelliteSimulationProperties;
+import com.tzy.sky.dto.base.Result;
 import com.tzy.sky.entity.SatelliteConfig;
 import com.tzy.sky.entity.GroundStationConfig;
 import com.tzy.sky.handler.MyWebSocketHandler;
 import com.tzy.sky.model.SatelliteModel;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,20 +35,40 @@ class PhysicsServiceTest {
     @Mock
     private GroundStationConfigService groundStationConfigService;
 
+    @Mock
+    private OrbitDynamicsService orbitDynamicsService;
+
+    @Mock
+    private EnergyThermalService energyThermalService;
+
+    @Mock
+    private ConnectionService connectionService;
+
+    @Mock
+    private UeProcessService ueProcessService;
+
+    private ObjectMapper objectMapper;
+
     private SatelliteSimulationProperties config;
     private PhysicsService physicsService;
 
     @BeforeEach
     void setUp() throws Exception {
         config = createTestConfig();
+        objectMapper = new ObjectMapper();
 
-        physicsService = new PhysicsService();
-
-        ReflectionTestUtils.setField(physicsService, "webSocketHandler", webSocketHandler);
-        ReflectionTestUtils.setField(physicsService, "config", config);
-        ReflectionTestUtils.setField(physicsService, "persistenceService", persistenceService);
-        ReflectionTestUtils.setField(physicsService, "satelliteConfigService", satelliteConfigService);
-        ReflectionTestUtils.setField(physicsService, "groundStationConfigService", groundStationConfigService);
+        physicsService = new PhysicsService(
+            webSocketHandler,
+            config,
+            persistenceService,
+            satelliteConfigService,
+            groundStationConfigService,
+            orbitDynamicsService,
+            energyThermalService,
+            connectionService,
+            ueProcessService,
+            objectMapper
+        );
     }
 
     private SatelliteSimulationProperties createTestConfig() {
@@ -198,9 +220,9 @@ class PhysicsServiceTest {
 
         @Test
         @DisplayName("负时间流速应生效（倒退）")
-        void setTimeScale_Negative_ShouldWork() {
+        void setTimeScale_Negative_ShouldClampToZero() {
             physicsService.setTimeScale(-1.0);
-            assertEquals(-1.0, physicsService.getTimeScale());
+            assertEquals(0.0, physicsService.getTimeScale());
         }
     }
 
@@ -560,18 +582,21 @@ class PhysicsServiceTest {
         }
 
         @Test
-        @DisplayName("启动UE系统应在配置无效时返回错误")
-        void startUeSystem_WithInvalidPath_ShouldReturnError() {
-            config.getUe5().getSignalling().setScriptPath("");
-            String result = physicsService.startUeSystem();
-            assertTrue(result.contains("error") || result.contains("status"));
+        @DisplayName("启动UE系统应返回成功结果")
+        void startUeSystem_ShouldReturnSuccess() {
+            when(ueProcessService.startUeSystem()).thenReturn(Result.success("UE系统启动成功"));
+            Result<String> result = physicsService.startUeSystem();
+            assertNotNull(result);
+            assertEquals(200, result.getCode());
         }
 
         @Test
-        @DisplayName("停止UE系统应在无进程时返回相应消息")
-        void stopUeSystem_WithNoProcess_ShouldReturnMessage() {
-            String result = physicsService.stopUeSystem();
+        @DisplayName("停止UE系统应返回成功结果")
+        void stopUeSystem_ShouldReturnSuccess() {
+            when(ueProcessService.stopUeSystem()).thenReturn(Result.success("UE系统已停止"));
+            Result<String> result = physicsService.stopUeSystem();
             assertNotNull(result);
+            assertEquals(200, result.getCode());
         }
     }
 

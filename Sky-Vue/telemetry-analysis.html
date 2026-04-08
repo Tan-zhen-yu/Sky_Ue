@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卫星遥测数据分析平台 - Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        /* ============================================
+           TAIWANCSS Design System v2.0
+           卫星遥测数据分析平台 - 精致深色主题
+           ============================================ */
+        
+        :root {
+            /* 核心色彩 - 深海蓝基调 */
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --bg-card: rgba(31, 41, 55, 0.6);
+            --bg-hover: rgba(55, 65, 81, 0.4);
+            
+            /* 强调色 - 科技蓝与琥珀金 */
+            --accent-blue: #3b82f6;
+            --accent-blue-glow: rgba(59, 130, 246, 0.3);
+            --accent-cyan: #06b6d4;
+            --accent-amber: #f59e0b;
+            --accent-amber-glow: rgba(245, 158, 11, 0.3);
+            
+            /* 功能色 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #6366f1;
+            
+            /* 文字色阶 */
+            --text-primary: #f9fafb;
+            --text-secondary: #e5e7eb;
+            --text-tertiary: #9ca3af;
+            --text-muted: #6b7280;
+            
+            /* 边框与分割 */
+            --border-subtle: rgba(75, 85, 99, 0.3);
+            --border-default: rgba(75, 85, 99, 0.5);
+            --border-focus: rgba(59, 130, 246, 0.5);
+            
+            /* 阴影系统 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
+            --shadow-glow-amber: 0 0 20px rgba(245, 158, 11, 0.15);
+            
+            /* 间距系统 */
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            
+            /* 圆角系统 */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            
+            /* 过渡曲线 */
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        /* 基础重置与字体 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+            line-height: 1.6;
+            letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-default);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        /* ============================================
+           顶部导航栏 - Glassmorphism效果
+           ============================================ */
+        header {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0 var(--space-xl);
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 100;
+            position: relative;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--accent-blue) 20%, 
+                var(--accent-cyan) 50%, 
+                var(--accent-blue) 80%, 
+                transparent 100%
+            );
+            opacity: 0.5;
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-icon {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+            color: #fff;
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: var(--shadow-glow-blue);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 70%
+            );
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        /* 时间控制区 */
+        .time-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            background: rgba(31, 41, 55, 0.5);
+            padding: 6px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            backdrop-filter: blur(10px);
+        }
+
+        .time-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-tertiary);
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out);
+            font-size: 13px;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .time-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-radius: var(--radius-md);
+        }
+
+        .time-btn:hover {
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+
+        .time-btn.active {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .time-btn.active::before {
+            opacity: 1;
+        }
+
+        .time-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .date-picker {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding-left: var(--space-md);
+            border-left: 1px solid var(--border-subtle);
+        }
+
+        .date-picker input {
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            color-scheme: dark;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .date-picker input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--accent-blue-glow);
+        }
+
+        /* 按钮组件 */
+        .btn {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s var(--ease-out);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-default);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%);
+            color: #fff;
+            border: none;
+            box-shadow: var(--shadow-glow-blue);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #60a5fa 0%, var(--accent-blue) 100%);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ============================================
+           主体布局 - 三栏结构
+           ============================================ */
+        .layout-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 侧边栏 - 精致卡片风格 */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, 
+                transparent 0%, 
+                var(--accent-blue) 50%, 
+                transparent 100%
+            );
+            opacity: 0.3;
+        }
+
+        .panel-section {
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--border-subtle);
+            position: relative;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            margin-bottom: var(--space-md);
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 2px;
+        }
+
+        /* 卫星列表 - 精致卡片 */
+        .sat-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .sat-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sat-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-blue);
+            transform: scaleY(0);
+            transition: transform 0.3s var(--ease-out);
+        }
+
+        .sat-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-default);
+            transform: translateX(4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sat-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent-blue);
+            box-shadow: var(--shadow-glow-blue);
+        }
+
+        .sat-item.active::before {
+            transform: scaleY(1);
+        }
+
+        .sat-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+            flex-shrink: 0;
+        }
+
+        .sat-info {
+            flex: 1;
+        }
+
+        .sat-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .sat-status {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sat-status::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .sat-item.active .sat-status {
+            color: var(--accent-blue);
+        }
+
+        /* 指标列表 - 现代复选框 */
+        .metric-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            cursor: pointer;
+            user-select: none;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+        }
+
+        .checkbox-label:hover {
+            background: var(--bg-hover);
+        }
+
+        .checkbox-label input {
+            display: none;
+        }
+
+        .checkbox-box {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s var(--ease-out);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .checkbox-box::after {
+            content: '';
+            width: 6px;
+            height: 10px;
+            border: solid #fff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg) scale(0);
+            transition: transform 0.2s var(--ease-out);
+            margin-bottom: 2px;
+        }
+
+        .checkbox-label input:checked + .checkbox-box {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px var(--accent-blue-glow);
+        }
+
+        .checkbox-label input:checked + .checkbox-box::after {
+            transform: rotate(45deg) scale(1);
+        }
+
+        .checkbox-label span {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .checkbox-label:hover span {
+            color: var(--text-primary);
+        }
+
+        .checkbox-label input:checked ~ span {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* ============================================
+           内容区域 - 沉浸式数据展示
+           ============================================ */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            background: var(--bg-primary);
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            padding: var(--space-md) var(--space-xl);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(10px);
+            z-index: 50;
+        }
+
+        .player-bar {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        select.styled-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            outline: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        select.styled-select:hover {
+            border-color: var(--border-default);
+        }
+
+        select.styled-select:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--accent-blue-glow);
+        }
+
+        /* 图表网格 - Bento Grid风格 */
+        .charts-grid {
+            flex: 1;
+            padding: var(--space-xl);
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: var(--space-xl);
+            align-content: start;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
+                var(--bg-primary);
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            padding: var(--space-lg);
+            height: 400px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.4s var(--ease-out);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(59, 130, 246, 0.3), 
+                transparent
+            );
+        }
+
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg), var(--shadow-glow-blue);
+            border-color: var(--border-default);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-md);
+            padding-bottom: var(--space-sm);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .chart-title {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        .chart-dom {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            border-radius: var(--radius-sm);
+        }
+
+        /* 空状态 - 艺术化设计 */
+        .empty-state {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            background: var(--bg-primary);
+            z-index: 10;
+            gap: var(--space-lg);
+        }
+
+        .empty-state-icon {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .empty-state-icon::before {
+            content: '🛰️';
+            font-size: 64px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
+            filter: grayscale(100%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+            50% { transform: translate(-50%, -50%) translateY(-20px); }
+        }
+
+        .empty-state h3 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            letter-spacing: -0.02em;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: var(--text-muted);
+            max-width: 300px;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        /* 提示框 - 精致通知 */
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background: rgba(31, 41, 55, 0.95);
+            border: 1px solid var(--border-default);
+            padding: 16px 24px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(100px) scale(0.9);
+            opacity: 0;
+            transition: all 0.4s var(--ease-out);
+            z-index: 9999;
+            backdrop-filter: blur(20px);
+            max-width: 400px;
+        }
+
+        .toast.show {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.success .toast-icon {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.error .toast-icon {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .toast.warning .toast-icon {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .toast-msg {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: spin 0.8s linear infinite;
+            box-shadow: 0 0 10px var(--accent-blue-glow);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1400px) {
+            .charts-grid {
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 260px;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 数据对比模式特殊样式 */
+        .compare-mode-active {
+            border-color: var(--accent-amber) !important;
+            box-shadow: var(--shadow-glow-amber) !important;
+        }
+
+        .compare-mode-active .chart-title::before {
+            background: var(--accent-amber);
+            box-shadow: 0 0 10px var(--accent-amber);
+        }
+
+        /* 播放按钮特殊动画 */
+        .playing {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-icon">🛰️</div>
+            卫星遥测数据分析中心
+        </div>
+        
+        <div class="time-controls">
+            <button class="time-btn active" data-range="1" onclick="setTimeRange(1)"><span>1小时</span></button>
+            <button class="time-btn" data-range="6" onclick="setTimeRange(6)"><span>6小时</span></button>
+            <button class="time-btn" data-range="24" onclick="setTimeRange(24)"><span>24小时</span></button>
+            <button class="time-btn" data-range="168" onclick="setTimeRange(168)"><span>7天</span></button>
+            <div class="date-picker">
+                <input type="datetime-local" id="time-start">
+                <span style="color: var(--text-muted)">-</span>
+                <input type="datetime-local" id="time-end">
+            </div>
+            <button class="btn btn-primary" style="margin-left: 8px;" onclick="fetchData()" id="btn-load">
+                <span id="load-icon"></span> 加载数据
+            </button>
+            <button class="btn" style="margin-left: 8px;" onclick="backToControl()">🚀 返回控制台</button>
+        </div>
+    </header>
+
+    <div class="layout-main">
+        <aside class="sidebar">
+            <div class="panel-section" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="panel-title">目标卫星 (多选)</div>
+                <div class="sat-list" id="satellite-list">
+                    <div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 40px 0;">
+                        正在加载卫星列表...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">遥测指标</div>
+                <div class="metric-list">
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="battery" checked onchange="updateCharts()">
+                        <div class="checkbox-box"></div>
+                        <span>电量 (Battery %)</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="temperature" checked onchange="updateCharts()">
+                        <div class="checkbox-box"></div>
+                        <span>设备温度 (°C)</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="solarEfficiency" onchange="updateCharts()">
+                        <div class="checkbox-box"></div>
+                        <span>太阳能转换率</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="speed" onchange="updateCharts()">
+                        <div class="checkbox-box"></div>
+                        <span>轨道速度 (km/s)</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="orbitRadius" onchange="updateCharts()">
+                        <div class="checkbox-box"></div>
+                        <span>轨道高度 (km)</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <div class="toolbar">
+                <div class="player-bar">
+                    <button class="btn" id="btn-play" onclick="togglePlayback()">
+                        ▶ 回放推演
+                    </button>
+                    <select class="styled-select" id="play-speed">
+                        <option value="1">1x 倍速</option>
+                        <option value="5">5x 倍速</option>
+                        <option value="10">10x 倍速</option>
+                        <option value="50">50x 极速</option>
+                    </select>
+                    <button class="btn" onclick="resetZoom()">⟲ 重置视角</button>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn" id="btn-compare" onclick="toggleCompareMode()">📊 对比模式</button>
+                    <button class="btn" onclick="exportCSV()">📥 导出记录</button>
+                </div>
+            </div>
+
+            <div class="charts-grid" id="charts-container">
+                <!-- 图表动态生成区 -->
+            </div>
+            
+            <div class="empty-state" id="empty-state">
+                <div class="empty-state-icon"></div>
+                <h3>等待数据加载</h3>
+                <p>请在左侧选择卫星并在顶部选择时间范围加载数据，开始分析遥测信息</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 提示框 -->
+    <div class="toast" id="toast">
+        <div class="toast-icon" id="toast-icon">✓</div>
+        <span class="toast-msg" id="toast-msg"></span>
+    </div>
+
+    <script>
+        // 全局核心状态
+        const state = {
+            colors: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'],
+            satellites: [],
+            selectedSats: new Set(),
+            data: new Map(),
+            charts: new Map(),
+            compareMode: false,
+            playbackTimer: null,
+            baseUrl: 'http://localhost:8080'
+        };
+
+        const metricNames = {
+            battery: '电量 (%)',
+            temperature: '设备温度 (°C)',
+            solarEfficiency: '太阳能转换率',
+            speed: '轨道速度 (km/s)',
+            orbitRadius: '轨道高度 (km)'
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeRange(1);
+            fetchSatellites();
+            
+            const resizeObserver = new ResizeObserver(() => {
+                state.charts.forEach(chart => chart.resize());
+            });
+            resizeObserver.observe(document.getElementById('charts-container'));
+        });
+
+        // 时间控制
+        function setTimeRange(hours) {
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.range) === hours);
+            });
+            const now = new Date();
+            const start = new Date(now.getTime() - hours * 3600 * 1000);
+            
+            const fmt = (d) => {
+                const pad = n => n.toString().padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+            document.getElementById('time-start').value = fmt(start);
+            document.getElementById('time-end').value = fmt(now);
+        }
+
+        document.getElementById('time-start').addEventListener('change', () => {
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        });
+        document.getElementById('time-end').addEventListener('change', () => {
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        });
+
+        // 加载卫星列表
+        async function fetchSatellites() {
+            try {
+                const res = await fetch(`${state.baseUrl}/api/satellite/ids`);
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                
+                const result = await res.json();
+                if (result.ids && result.ids.length > 0) {
+                    state.satellites = result.ids;
+                    renderSatList();
+                } else {
+                    document.getElementById('satellite-list').innerHTML = 
+                        '<div style="color: var(--warning); font-size: 13px; text-align: center; padding: 20px;">数据库中未查询到卫星</div>';
+                }
+            } catch (err) {
+                console.error('获取卫星列表失败:', err);
+                showToast('无法连接服务器获取卫星列表', 'error');
+                document.getElementById('satellite-list').innerHTML = 
+                    '<div style="color: var(--danger); font-size: 13px; text-align: center; padding: 20px;">网络请求失败，请检查后端服务</div>';
+            }
+        }
+
+        function renderSatList() {
+            const container = document.getElementById('satellite-list');
+            container.innerHTML = state.satellites.map((sat, idx) => {
+                const color = state.colors[idx % state.colors.length];
+                const isActive = state.selectedSats.has(sat);
+                return `
+                <div class="sat-item ${isActive ? 'active' : ''}" onclick="toggleSatellite('${sat}')">
+                    <div class="sat-color" style="background: ${color}; color: ${color}"></div>
+                    <div class="sat-info">
+                        <div class="sat-name">${sat}</div>
+                        <div class="sat-status">${isActive ? '● 已选中' : '○ 待命'}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleSatellite(sat) {
+            if (state.selectedSats.has(sat)) state.selectedSats.delete(sat);
+            else state.selectedSats.add(sat);
+            renderSatList();
+            if (state.data.has(sat)) updateCharts();
+        }
+
+        // 获取数据
+        async function fetchData() {
+            if (state.selectedSats.size === 0) {
+                showToast('请在左侧至少选择一颗卫星', 'warning');
+                return;
+            }
+
+            const startVal = document.getElementById('time-start').value;
+            const endVal = document.getElementById('time-end').value;
+            if (!startVal || !endVal || new Date(startVal) >= new Date(endVal)) {
+                showToast('时间区间无效', 'error');
+                return;
+            }
+
+            setLoading(true);
+            state.data.clear();
+            let hasAnyData = false;
+
+            try {
+                const promises = Array.from(state.selectedSats).map(async (satId) => {
+                    const url = `${state.baseUrl}/api/v1/replay/data/${satId}?startTime=${encodeURIComponent(startVal)}&endTime=${encodeURIComponent(endVal)}&limit=100000`;
+                    const res = await fetch(url);
+                    
+                    if (!res.ok) throw new Error(`获取卫星 ${satId} 的数据失败 (HTTP ${res.status})`);
+                    
+                    const result = await res.json();
+                    
+                    if (result.data && result.data.length > 0) {
+                        const sortedData = result.data.sort((a, b) => 
+                            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                        );
+                        state.data.set(satId, sortedData);
+                        hasAnyData = true;
+                    }
+                });
+
+                await Promise.all(promises);
+                
+                if (!hasAnyData) {
+                    showToast('所选时间范围内未查询到数据', 'warning');
+                    document.getElementById('empty-state').style.display = 'flex';
+                    document.getElementById('charts-container').innerHTML = '';
+                    state.charts.clear();
+                } else {
+                    showToast('数据加载完成', 'success');
+                    document.getElementById('empty-state').style.display = 'none';
+                    updateCharts();
+                }
+            } catch(e) {
+                console.error('拉取数据出错:', e);
+                showToast('数据加载失败，请检查网络或控制台', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // 渲染图表
+        function updateCharts() {
+            if(state.data.size === 0) return;
+
+            const container = document.getElementById('charts-container');
+            const selectedMetrics = Array.from(document.querySelectorAll('.metric-list input:checked')).map(cb => cb.value);
+
+            state.charts.forEach((chart, metric) => {
+                if (!selectedMetrics.includes(metric)) {
+                    chart.dispose();
+                    state.charts.delete(metric);
+                    const el = document.getElementById(`card-${metric}`);
+                    if (el) el.remove();
+                }
+            });
+
+            selectedMetrics.forEach(metric => {
+                if (!document.getElementById(`card-${metric}`)) {
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+                    card.id = `card-${metric}`;
+                    if (state.compareMode) card.classList.add('compare-mode-active');
+                    card.innerHTML = `
+                        <div class="chart-header">
+                            <div class="chart-title">${metricNames[metric]}</div>
+                        </div>
+                        <div class="chart-dom" id="dom-${metric}"></div>
+                    `;
+                    container.appendChild(card);
+                }
+
+                let chart = state.charts.get(metric);
+                if (!chart) {
+                    chart = echarts.init(document.getElementById(`dom-${metric}`), 'dark');
+                    chart.group = 'sync-group'; 
+                    state.charts.set(metric, chart);
+                }
+
+                const series = [];
+                Array.from(state.selectedSats).forEach((satId) => {
+                    const satData = state.data.get(satId);
+                    if (!satData || satData.length === 0) return;
+
+                    const color = state.colors[state.satellites.indexOf(satId) % state.colors.length];
+                    
+                    series.push({
+                        name: satId,
+                        type: 'line',
+                        smooth: true,
+                        showSymbol: false,
+                        symbolSize: 8,
+                        lineStyle: { 
+                            width: 3, 
+                            color: color,
+                            shadowColor: color,
+                            shadowBlur: 10
+                        },
+                        itemStyle: {
+                            color: color
+                        },
+                        emphasis: {
+                            focus: 'series',
+                            lineStyle: { width: 4 },
+                            itemStyle: { 
+                                opacity: 1,
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }
+                        },
+                        areaStyle: state.compareMode ? null : {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: color + '40' },
+                                { offset: 1, color: color + '00' }
+                            ])
+                        },
+                        data: satData.map(d => [
+                            new Date(d.timestamp).getTime(), 
+                            d[metric] != null ? d[metric] : 0
+                        ])
+                    });
+                });
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: { 
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                        borderColor: 'rgba(75, 85, 99, 0.5)',
+                        borderWidth: 1,
+                        textStyle: { 
+                            color: '#e5e7eb',
+                            fontSize: 13
+                        },
+                        padding: [12, 16],
+                        extraCssText: 'backdrop-filter: blur(10px); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);'
+                    },
+                    legend: { 
+                        show: true, 
+                        top: 0, 
+                        right: 0, 
+                        textStyle: { 
+                            color: '#9ca3af',
+                            fontSize: 12
+                        },
+                        itemGap: 20,
+                        itemWidth: 14,
+                        itemHeight: 14
+                    },
+                    grid: { 
+                        top: 50, 
+                        right: 30, 
+                        bottom: 60, 
+                        left: 60, 
+                        containLabel: false 
+                    },
+                    dataZoom: [
+                        { 
+                            type: 'inside', 
+                            xAxisIndex: 0, 
+                            filterMode: 'none' 
+                        },
+                        { 
+                            type: 'slider', 
+                            xAxisIndex: 0, 
+                            height: 30, 
+                            bottom: 10, 
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(31, 41, 55, 0.5)',
+                            dataBackground: { 
+                                lineStyle: { color: '#4b5563', width: 1 }, 
+                                areaStyle: { color: '#4b5563', opacity: 0.1 } 
+                            },
+                            fillerColor: 'rgba(59, 130, 246, 0.2)',
+                            handleStyle: {
+                                color: '#3b82f6',
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(59, 130, 246, 0.5)'
+                            },
+                            textStyle: { color: '#9ca3af' }
+                        }
+                    ],
+                    xAxis: { 
+                        type: 'time', 
+                        splitLine: { show: false },
+                        axisLine: { 
+                            lineStyle: { color: 'rgba(75, 85, 99, 0.3)' } 
+                        },
+                        axisLabel: { 
+                            color: '#6b7280',
+                            fontSize: 12,
+                            formatter: '{HH}:{mm}'
+                        },
+                        axisTick: { show: false }
+                    },
+                    yAxis: { 
+                        type: 'value', 
+                        scale: true, 
+                        splitLine: { 
+                            lineStyle: { 
+                                color: 'rgba(75, 85, 99, 0.2)', 
+                                type: 'dashed' 
+                            } 
+                        },
+                        axisLabel: { 
+                            color: '#6b7280',
+                            fontSize: 12
+                        },
+                        axisLine: { show: false }
+                    },
+                    series: series
+                };
+
+                chart.setOption(option, true);
+            });
+
+            echarts.connect('sync-group');
+
+            setTimeout(() => {
+                state.charts.forEach(chart => chart.resize());
+            }, 100);
+        }
+
+        // 对比模式
+        function toggleCompareMode() {
+            state.compareMode = !state.compareMode;
+            const btn = document.getElementById('btn-compare');
+            const cards = document.querySelectorAll('.chart-card');
+            
+            if (state.compareMode) {
+                btn.style.background = 'linear-gradient(135deg, var(--accent-amber) 0%, #d97706 100%)';
+                btn.style.color = '#fff';
+                btn.style.borderColor = 'transparent';
+                btn.style.boxShadow = 'var(--shadow-glow-amber)';
+                cards.forEach(card => card.classList.add('compare-mode-active'));
+                showToast('对比模式已开启 - 隐藏面积图以清晰对比', 'success');
+            } else {
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.style.borderColor = '';
+                btn.style.boxShadow = '';
+                cards.forEach(card => card.classList.remove('compare-mode-active'));
+            }
+            updateCharts();
+        }
+
+        // 回放功能
+        function togglePlayback() {
+            const btn = document.getElementById('btn-play');
+            
+            if (state.playbackTimer) {
+                clearInterval(state.playbackTimer);
+                state.playbackTimer = null;
+                btn.innerHTML = '▶ 回放推演';
+                btn.classList.remove('playing');
+                btn.style.color = '';
+                return;
+            }
+
+            if(state.charts.size === 0) {
+                showToast('没有可供回放的图表', 'warning');
+                return;
+            }
+
+            btn.innerHTML = '⏸ 停止推演';
+            btn.classList.add('playing');
+
+            state.playbackTimer = setInterval(() => {
+                const chart = Array.from(state.charts.values())[0];
+                const option = chart.getOption();
+                if(!option.dataZoom || option.dataZoom.length === 0) return;
+
+                let start = option.dataZoom[0].start;
+                let end = option.dataZoom[0].end;
+                const windowSize = end - start;
+                
+                const speed = parseFloat(document.getElementById('play-speed').value);
+                const step = 0.5 * speed;
+
+                start += step;
+                end += step;
+
+                if (end > 100) {
+                    start = 0;
+                    end = windowSize;
+                }
+
+                state.charts.forEach(c => {
+                    c.dispatchAction({
+                        type: 'dataZoom',
+                        start: start,
+                        end: end
+                    });
+                });
+            }, 100);
+        }
+
+        function resetZoom() {
+            state.charts.forEach(c => c.dispatchAction({ type: 'restore' }));
+        }
+
+        // 导出CSV
+        function exportCSV() {
+            if (state.data.size === 0) return showToast('没有可导出的数据', 'warning');
+            
+            let csv = 'Timestamp,Satellite,Battery,Temperature,SolarEfficiency,Speed,OrbitRadius\n';
+            state.data.forEach((records, satId) => {
+                records.forEach(r => {
+                    const time = new Date(r.timestamp).toISOString();
+                    csv += `${time},${satId},${r.battery||0},${r.temperature||0},${r.solarEfficiency||0},${r.speed||0},${r.orbitRadius||0}\n`;
+                });
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `telemetry_export_${new Date().getTime()}.csv`;
+            link.click();
+            showToast('文件导出成功', 'success');
+        }
+
+        // 工具函数
+        function backToControl() {
+            window.location.href = 'satellite-control.html';
+        }
+
+        function setLoading(isLoading) {
+            const btn = document.getElementById('btn-load');
+            const icon = document.getElementById('load-icon');
+            btn.disabled = isLoading;
+            icon.className = isLoading ? 'loading-spinner' : '';
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const iconMap = {
+                success: '✓',
+                error: '✕',
+                warning: '!'
+            };
+            
+            toast.className = `toast ${type}`;
+            document.getElementById('toast-icon').textContent = iconMap[type];
+            document.getElementById('toast-msg').textContent = msg;
+            
+            // 强制重绘以触发动画
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>

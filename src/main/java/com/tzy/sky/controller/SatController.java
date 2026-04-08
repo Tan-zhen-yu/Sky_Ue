@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,8 +18,29 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "卫星控制", description = "卫星轨道、姿态、发动机等控制接口")
 public class SatController {
 
-    @Autowired
-    private PhysicsService physicsService;
+    private final PhysicsService physicsService;
+
+    public SatController(PhysicsService physicsService) {
+        this.physicsService = physicsService;
+    }
+
+    private void validateSatelliteId(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw BusinessException.invalidParameter("卫星ID不能为空");
+        }
+    }
+
+    private void validatePositiveValue(String name, double value) {
+        if (value < 0) {
+            throw BusinessException.invalidParameter(name + "不能为负数");
+        }
+    }
+
+    private void validateNotEmpty(String name, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw BusinessException.invalidParameter(name + "不能为空");
+        }
+    }
 
     @Operation(summary = "设置卫星轨道半径", description = "修改指定卫星的轨道高度")
     @ApiResponses(value = {
@@ -34,12 +54,8 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "轨道高度(km)", required = true, example = "8000")
             @RequestParam double alt) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
-        if (alt < 0) {
-            throw BusinessException.invalidParameter("轨道高度不能为负数");
-        }
+        validateSatelliteId(id);
+        validatePositiveValue("轨道高度", alt);
         physicsService.setOrbit(id, alt);
         return Result.success("轨道已更新", id + " Orbit Radius Set to: " + alt);
     }
@@ -57,12 +73,8 @@ public class SatController {
             @RequestParam String axis,
             @Parameter(description = "角度值", required = true, example = "45.0")
             @RequestParam double val) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
-        if (axis == null || axis.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("旋转轴不能为空");
-        }
+        validateSatelliteId(id);
+        validateNotEmpty("旋转轴", axis);
         physicsService.setAttitude(id, axis, val);
         return Result.success("姿态已更新", id + " " + axis + " Set to: " + val);
     }
@@ -74,9 +86,7 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "是否被遮挡", required = true)
             @RequestParam boolean occluded) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
+        validateSatelliteId(id);
         physicsService.updateSensorStatus(id, occluded);
         return Result.success("传感器状态已更新", "Sensor Status Updated: " + (occluded ? "Occluded" : "Clear"));
     }
@@ -88,12 +98,8 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "速度值", required = true, example = "7.5")
             @RequestParam double speed) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
-        if (speed < 0) {
-            throw BusinessException.invalidParameter("速度不能为负数");
-        }
+        validateSatelliteId(id);
+        validatePositiveValue("速度", speed);
         physicsService.setSpeed(id, speed);
         return Result.success("速度已更新", id + " Speed Scale Set to: " + speed);
     }
@@ -105,9 +111,7 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "是否启动", required = true)
             @RequestParam boolean active) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
+        validateSatelliteId(id);
         physicsService.setEngineState(id, active);
         return Result.success("发动机状态已更新", "Engine Set: " + active);
     }
@@ -122,9 +126,7 @@ public class SatController {
     public Result<String> takePhoto(
             @Parameter(description = "卫星ID", required = true, example = "SAT-001")
             @RequestParam String id) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
+        validateSatelliteId(id);
         String result = physicsService.triggerCamera(id);
         if (result.contains("不存在")) {
             throw BusinessException.satelliteNotFound(id);
@@ -140,9 +142,7 @@ public class SatController {
     public Result<String> setFocus(
             @Parameter(description = "卫星ID", required = true, example = "SAT-001")
             @RequestParam String id) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
+        validateSatelliteId(id);
         String result = physicsService.setFocusTarget(id);
         if (result.contains("不存在")) {
             throw BusinessException.satelliteNotFound(id);
@@ -157,12 +157,8 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "指向模式(sun/earth/free)", required = true, example = "earth")
             @RequestParam String target) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
-        if (target == null || target.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("指向模式不能为空");
-        }
+        validateSatelliteId(id);
+        validateNotEmpty("指向模式", target);
         physicsService.setPointingMode(id, target);
         return Result.success("指向模式已更新", id + " Pointing Mode Set to: " + target);
     }
@@ -174,12 +170,8 @@ public class SatController {
             @RequestParam String id,
             @Parameter(description = "热控模式(auto/heater/cooler)", required = true, example = "auto")
             @RequestParam String mode) {
-        if (id == null || id.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("卫星ID不能为空");
-        }
-        if (mode == null || mode.trim().isEmpty()) {
-            throw BusinessException.invalidParameter("热控模式不能为空");
-        }
+        validateSatelliteId(id);
+        validateNotEmpty("热控模式", mode);
         physicsService.setThermalMode(id, mode);
         return Result.success("热控模式已更新", id + " Thermal Mode Set to: " + mode);
     }
