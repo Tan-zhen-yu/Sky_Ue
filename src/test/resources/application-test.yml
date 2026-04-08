@@ -1,0 +1,69 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  sql:
+    init:
+      mode: never
+
+ue5:
+  signalling:
+    scriptPath: "test-signalling-path"
+    startupDelay: 1
+  executable:
+    path: "test-ue-path"
+    pixelStreamingUrl: "ws://127.0.0.1:8888"
+    resolution:
+      width: 1920
+      height: 1080
+    performance:
+      screenPercentage: 67
+      encoderRateControl: CBR
+      encoderBitrate: 8000000
+      encoderMaxQp: 30
+    window:
+      mode: "-Windowed"
+      renderOffScreen: "-RenderOffScreen"
+      winY: 0
+      allowSecondaryDisplays: "-AllowSecondaryDisplays"
+    audio: "-AudioMixer"
+
+physics:
+  earth:
+    radiusKm: 6371.0
+    gm: 398600.0
+  simulation:
+    tickRateHz: 20
+    timeScale: 1.0
+  connection:
+    lowOrbitThreshold: 10000.0
+    lowOrbitDistance: 6000.0
+    highOrbitDistance: 50000.0
+  energy:
+    baseDrainRate: 0.05
+    solarChargeRate: 0.5
+    thermalDrainRate: 0.3
+    photoBatteryThreshold: 10.0
+  propulsion:
+    engineWarmupTime: 3.0
+    fuelConsumptionRate: 2.0
+    orbitChangeRate: 10.0
+  thermal:
+    shadowTemperature: -100.0
+    sunTemperature: 150.0
+    engineWarmupHeat: 50.0
+    engineActiveHeat: 300.0
+    heaterTarget: 200.0
+    coolerTarget: -50.0
+    temperatureChangeRate: 0.1
+
+logging:
+  level:
+    com.tzy.sky: DEBUG
+    org.springframework: WARN

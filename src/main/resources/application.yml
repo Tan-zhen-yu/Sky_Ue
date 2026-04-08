@@ -1,0 +1,113 @@
+# 卫星仿真系统配置文件
+server:
+  port: 8080
+
+# MySQL数据库配置
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/satellite_simulation?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update  # 自动更新表结构
+    show-sql: false      # 关闭SQL语句显示，减少日志输出
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+  sql:
+    init:
+      mode: always  # 始终执行 schema.sql 和 data.sql
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+  # Redis配置（临时禁用）
+  # redis:
+  #   host: localhost
+  #   port: 6379
+  #   password: tzy123456
+  #   database: 0
+  #   timeout: 2000ms
+  #   lettuce:
+  #     pool:
+  #       max-active: 8
+  #       max-wait: -1ms
+  #       max-idle: 8
+  #       min-idle: 0
+
+# 数据保存配置
+data-persistence:
+  enabled: true  # 默认开启数据保存
+  save-interval-ms: 500  # 保存间隔(毫秒)，500ms保存一次
+  batch-size: 200  # 批量保存大小
+
+# UE5 渲染引擎配置
+ue5:
+  # 信令服务器配置
+  signalling:
+    scriptPath: "D:/Soft/CodingSoftWare/UE_5.7/Engine/Plugins/Media/PixelStreaming2/Resources/WebServers/SignallingWebServer/platform_scripts/cmd/my_start.bat"
+    startupDelay: 2  # 秒
+  # UE5 可执行文件配置  
+  executable:
+    path: "D:/myCode/packProject/Windows/Stream.exe"
+    pixelStreamingUrl: "ws://127.0.0.1:8888"
+    # 渲染参数
+    resolution:
+      width: 1920
+      height: 1080
+    performance:
+      screenPercentage: 67
+      encoderRateControl: CBR
+      encoderBitrate: 8000000
+      encoderMaxQp: 30
+    window:
+      mode: "-Windowed"
+      renderOffScreen: "-RenderOffScreen"
+      winY: 0
+      allowSecondaryDisplays: "-AllowSecondaryDisplays"
+    audio: "-AudioMixer"
+
+# 物理引擎配置
+physics:
+  # 地球参数
+  earth:
+    radiusKm: 6371.0
+    gm: 398600.0  # 万有引力常数 * 地球质量
+  # 仿真参数
+  simulation:
+    tickRateHz: 20  # 物理引擎刷新频率
+    timeScale: 1.0    # 默认时间缩放
+  # 连接阈值
+  connection:
+    lowOrbitThreshold: 10000  # 低轨道判定阈值(km)
+    lowOrbitDistance: 6000    # 低轨道连接距离(km)  
+    highOrbitDistance: 50000  # 高轨道连接距离(km)
+  # 能源系统
+  energy:
+    baseDrainRate: 0.05    # 基础耗电速率
+    solarChargeRate: 0.5   # 太阳能充电速率
+    thermalDrainRate: 0.3  # 热控系统耗电速率
+    photoBatteryThreshold: 10.0  # 拍照最低电量要求
+  # 推进系统
+  propulsion:
+    engineWarmupTime: 3.0  # 发动机预热时间(秒)
+    fuelConsumptionRate: 2.0  # 燃料消耗速率
+    orbitChangeRate: 10.0  # 轨道变化速率
+  # 热控系统
+  thermal:
+    shadowTemperature: -100.0  # 阴影温度
+    sunTemperature: 150.0      # 太阳照射温度
+    engineWarmupHeat: 50.0   # 预热热量
+    engineActiveHeat: 300.0  # 工作热量
+    heaterTarget: 200.0       # 加热器目标温度
+    coolerTarget: -50.0       # 制冷器目标温度
+    temperatureChangeRate: 0.1  # 温度变化速率
+
+# 日志配置
+logging:
+  level:
+    com.tzy.sky: INFO
+    org.springframework: WARN
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

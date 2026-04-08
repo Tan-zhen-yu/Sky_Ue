@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tzy.sky.mapper.SatelliteDataMapper">
+
+    <insert id="insertBatch">
+        INSERT INTO satellite_data (
+        id, satellite_id, simulation_time, timestamp,
+        position_x, position_y, position_z, orbit_radius,
+        real_pitch, real_roll, real_yaw,
+        battery, solar_efficiency,
+        temperature, thermal_mode,
+        engine_active, is_occluded, is_scanning, pointing_mode, connected_station,
+        speed, created_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.id}, #{item.satelliteId}, #{item.simulationTime}, #{item.timestamp},
+            #{item.positionX}, #{item.positionY}, #{item.positionZ}, #{item.orbitRadius},
+            #{item.realPitch}, #{item.realRoll}, #{item.realYaw},
+            #{item.battery}, #{item.solarEfficiency},
+            #{item.temperature}, #{item.thermalMode},
+            #{item.engineActive}, #{item.isOccluded}, #{item.isScanning}, #{item.pointingMode}, #{item.connectedStation},
+            #{item.speed}, #{item.createdAt}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

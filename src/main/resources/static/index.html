@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>实时交通仿真系统</title>
+    <style>
+        /* 简约美观的CSS */
+        body {
+            background-color: #f0f2f5;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h2 { color: #2c3e50; margin-bottom: 10px; }
+        canvas {
+            background-color: #ecf0f1;
+            border: 5px solid #bdc3c7;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: 15px;
+            border-radius: 8px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 800px;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .controls, .creator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        #startButton { background-color: #2ecc71; color: white; }
+        #pauseButton { background-color: #e74c3c; color: white; }
+        #startButton:hover { background-color: #27ad60; }
+        #pauseButton:hover { background-color: #c0392b; }
+        .info { font-size: 14px; color: #7f8c8d; }
+        .creator input, .creator select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .creator button { background-color: #3498db; color: white; }
+        .creator button:hover { background-color: #2980b9; }
+    </style>
+</head>
+<body>
+<h2>🚦 实时交通仿真监控</h2>
+
+<div class="container">
+    <div class="controls">
+        <button id="startButton" onclick="sendCommand('START')">启动仿真</button>
+        <button id="pauseButton" onclick="sendCommand('PAUSE')">暂停仿真</button>
+        <div id="statusMessage" class="info" style="color: #3498db; font-weight: bold;">状态: 连接中...</div>
+    </div>
+
+    <div class="creator">
+        <label>方向:</label>
+        <select id="carDirection">
+            <option value="EW">东西向</option>
+            <option value="NS">南北向</option>
+        </select>
+        <label>速度(1-10):</label>
+        <input type="number" id="carSpeed" value="5" min="1" max="10" step="0.5" style="width: 60px;">
+        <button onclick="createCar()">创建车辆</button>
+    </div>
+</div>
+
+<canvas id="simCanvas" width="800" height="600"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusDiv = document.getElementById('statusMessage');
+
+    let cars = [];
+    let lightNS = { color: 'RED' };
+    let lightEW = { color: 'GREEN' };
+    let stompClient = null;
+
+    // 【控制函数】
+    function sendCommand(cmd) {
+        if (stompClient && stompClient.connected) {
+            stompClient.send("/app/control", {}, cmd);
+        } else {
+            console.error("STOMP connection not ready.");
+        }
+    }
+
+    // 【新增创建车辆函数】
+    function createCar() {
+        const direction = document.getElementById('carDirection').value;
+        const speed = parseFloat(document.getElementById('carSpeed').value);
+
+        if (speed < 1 || speed > 1000) {
+            alert("速度必须在 1 到 10 之间。");
+            return;
+        }
+
+        if (stompClient && stompClient.connected) {
+            const request = { direction: direction, speed: speed };
+            stompClient.send("/app/createCar", {}, JSON.stringify(request));
+        } else {
+            console.error("STOMP connection not ready.");
+        }
+    }
+
+    // --- WebSocket 连接逻辑 ---
+    const socket = new SockJS('http://localhost:8080/traffic-ws');
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+
+    stompClient.connect({}, function (frame) {
+        statusDiv.innerText = '状态: 连接成功，等待数据...';
+
+        // 订阅仿真数据推送
+        stompClient.subscribe('/topic/traffic', function (message) {
+            const state = JSON.parse(message.body);
+            cars = state.cars;
+            lightNS = state.lightNS;
+            lightEW = state.lightEW;
+        });
+
+        // 订阅控制状态反馈
+        stompClient.subscribe('/topic/status', function (message) {
+            statusDiv.innerText = '状态: ' + message.body;
+        });
+
+        sendCommand('STATUS');
+
+    }, function(error) {
+        statusDiv.innerText = '状态: 连接失败 (' + error + ')';
+        console.error('STOMP Error: ', error);
+    });
+
+    // --- 绘制辅助函数 ---
+    function drawLight(x, y, color, label, time) {
+        ctx.fillStyle = '#34495e';
+        ctx.fillRect(x, y, 40, 30);
+
+        const redColor = color === 'RED' ? '#e74c3c' : '#7f8c8d';
+        const greenColor = color === 'GREEN' ? '#2ecc71' : '#7f8c8d';
+
+        // 红灯 (右侧/下侧)
+        ctx.fillStyle = redColor;
+        ctx.beginPath(); ctx.arc(x + 30, y + 15, 8, 0, Math.PI * 2); ctx.fill();
+
+        // 绿灯 (左侧/上侧)
+        ctx.fillStyle = greenColor;
+        ctx.beginPath(); ctx.arc(x + 10, y + 15, 8, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#ecf0f1';
+        ctx.font = '10px Arial';
+        ctx.fillText(label, x + 10, y - 5);
+
+        // 【新增】倒计时显示
+        if (time > 0) {
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            // 显示在绿灯区域
+            ctx.fillText(time, x + 5, y + 20);
+        }
+    }
+
+    // --- 绘制主循环 ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制道路
+        ctx.fillStyle = '#7f8c8d';
+        ctx.fillRect(0, 280, 800, 80); // EW Lane
+        ctx.fillRect(380, 0, 80, 600); // NS Lane
+
+        // 绘制停止线
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 5]);
+        ctx.beginPath(); ctx.moveTo(350, 280); ctx.lineTo(350, 360); ctx.stroke(); // EW Stop Line
+        ctx.beginPath(); ctx.moveTo(380, 250); ctx.lineTo(460, 250); ctx.stroke(); // NS Stop Line
+        ctx.setLineDash([]);
+
+        drawLight(340, 240, lightEW.color, "EW", lightEW.remainingTime);
+        // NS灯 (给NS方向车看)
+        drawLight(470, 370, lightNS.color, "NS", lightNS.remainingTime);
+
+        // 绘制车辆
+        if (cars.length > 0) {
+            cars.forEach(car => {
+                // 车辆停止时变红色，行驶时变蓝色
+                ctx.fillStyle = car.stopped ? '#c0392b' : '#3498db';
+
+                if (car.direction === 'EW') {
+                    // 东西向车辆 (长30，宽15)
+                    ctx.fillRect(car.x, car.y + 10, 30, 15);
+                } else {
+                    // 南北向车辆 (长30，宽15)
+                    ctx.fillRect(car.x + 10, car.y, 15, 30);
+                }
+            });
+        }
+
+        requestAnimationFrame(draw);
+    }
+
+    // 启动渲染循环
+    draw();
+</script>
+</body>
+</html>
